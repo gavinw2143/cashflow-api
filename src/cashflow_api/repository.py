@@ -70,3 +70,24 @@ def create_loan(
             )
 
     return loan_id
+
+
+def create_portfolio(
+    conn: Connection,
+    *,
+    code: str,
+    name: str,
+) -> int:
+    with conn.transaction():
+        row = conn.execute(
+            """
+            INSERT INTO portfolios (code, name)
+            VALUES (%s, %s)
+            RETURNING id
+            """,
+            (code, name),
+        ).fetchone()
+
+        assert row is not None
+        return row[0]
+

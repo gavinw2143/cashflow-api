@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help up down logs psql migrate info validate test lint fmt check
+.PHONY: help up down logs psql migrate info validate serve test lint fmt check
 
 help:
 	@printf '%s\n' \
@@ -36,6 +36,9 @@ info: up
 
 validate: up
 	docker compose run --rm flyway validate
+
+serve:
+	uv run --env-file .env flask --app cashflow_api.app run --debug
 
 test:
 	uv run --env-file .env pytest
