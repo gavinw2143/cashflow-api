@@ -15,13 +15,14 @@ services:
       retries: 10
 
   flyway:
-    image: flyway/flyway:latest
+    image: flyway/flyway:13.10.3
     environment:
       FLYWAY_URL: jdbc:postgresql://db:5432/cashflow
       FLYWAY_USER: cashflow
       FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
     volumes:
-      - ./migrations:/flyway/sql:ro
+      - ./migrations:/flyway/migrations:ro
     depends_on:
       db:
         condition: service_healthy
