@@ -97,3 +97,4 @@ def generate_schedule(
             )
 
     return schedule
+

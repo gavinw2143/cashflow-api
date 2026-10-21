@@ -16,3 +16,4 @@ def db():
             yield conn
         finally:
             conn.execute("ROLLBACK")
+

@@ -65,3 +65,4 @@ def test_invalid_terms(principal, rate, term):
         generate_schedule(
             principal, rate, term, date(2026, 11, 1)
         )
+

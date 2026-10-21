@@ -84,3 +84,56 @@ def test_requires_json(client):
         content_type="text/plain",
     )
     assert response.status_code == 415
+
+
+def test_create_loan_api(client, db):
+    portfolio = client.post(
+        "/portfolios",
+        json={"code": "loans-test", "name": "Loans Test"},
+    ).get_json()
+
+    response = client.post(
+        f"/portfolios/{portfolio['id']}/loans",
+        json={
+            "reference": "loan-001",
+            "principal_cents": 120_000,
+            "annual_rate_bps": 525,
+            "term_months": 12,
+            "first_payment_date": "2026-11-01",
+        },
+    )
+
+    assert response.status_code == 201
+    loan_id = response.get_json()["id"]
+
+    rows = db.execute(
+        """
+        SELECT payment_number, principal_cents,
+               interest_cents, remaining_balance_cents
+        FROM scheduled_cashflows
+        WHERE loan_id = %s
+        ORDER BY payment_number
+        """,
+        (loan_id,),
+    ).fetchall()
+
+    assert len(rows) == 12
+    assert rows[0] == (1, 9762, 525, 110238)
+    assert sum(row[1] for row in rows) == 120_000
+    assert rows[-1][3] == 0
+
+
+def test_create_loan_missing_portfolio(client):
+    response = client.post(
+        "/portfolios/999999999/loans",
+        json={
+            "reference": "loan-001",
+            "principal_cents": 120_000,
+            "annual_rate_bps": 525,
+            "term_months": 12,
+            "first_payment_date": "2026-11-01",
+        },
+    )
+
+    assert response.status_code == 404
+

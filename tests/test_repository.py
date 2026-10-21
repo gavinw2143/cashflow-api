@@ -94,3 +94,4 @@ def test_schedule_failure_rolls_back_loan(db, monkeypatch):
         "SELECT COUNT(*) FROM portfolios WHERE id = %s",
         (portfolio_id,),
     ).fetchone() == (1,)
+

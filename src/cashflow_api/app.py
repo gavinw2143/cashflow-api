@@ -1,10 +1,11 @@
+from datetime import date
 import os
 
-import psycopg
 from flask import Flask, current_app, g, jsonify, request
-from psycopg.errors import UniqueViolation
+import psycopg
+from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
-from cashflow_api.repository import create_portfolio
+from cashflow_api.repository import create_loan, create_portfolio
 
 
 def get_db() -> psycopg.Connection:
@@ -73,4 +74,75 @@ def create_app(test_config: dict | None = None) -> Flask:
             name=name,
         ), 201
 
+    @app.post("/portfolios/<int:portfolio_id>/loans")
+    def post_loan(portfolio_id: int):
+        if not request.is_json:
+            return jsonify(
+                error="Content-Type must be application/json"
+            ), 415
+
+        payload = request.get_json(silent=True)
+        if not isinstance(payload, dict):
+            return jsonify(error="Expected a JSON object"), 400
+
+        reference = payload.get("reference")
+        if not isinstance(reference, str) or not reference.strip():
+            return jsonify(error="Invalid loan reference"), 400
+        reference = reference.strip()
+
+        principal = payload.get("principal_cents")
+        rate = payload.get("annual_rate_bps")
+        term = payload.get("term_months")
+
+        if type(principal) is not int or not 0 < principal < 2**63:
+            return jsonify(error="Invalid principal_cents"), 400
+
+        if type(rate) is not int or not 0 <= rate <= 100_000:
+            return jsonify(error="Invalid annual_rate_bps"), 400
+
+        if type(term) is not int or not 1 <= term <= 600:
+            return jsonify(error="Invalid term_months"), 400
+
+        raw_date = payload.get("first_payment_date")
+        try:
+            first_payment_date = date.fromisoformat(raw_date)
+            if first_payment_date.isoformat() != raw_date:
+                raise ValueError
+        except (ValueError, TypeError):
+            return jsonify(
+                error="first_payment_date must be YYYY-MM-DD"
+            ), 400
+
+        try:
+            loan_id = create_loan(
+                get_db(),
+                portfolio_id=portfolio_id,
+                reference=reference,
+                principal_cents=principal,
+                annual_rate_bps=rate,
+                term_months=term,
+                first_payment_date=first_payment_date,
+            )
+        except ForeignKeyViolation as exc:
+            if exc.diag.constraint_name != "loans_portfolio_fk":
+                raise
+            return jsonify(error="Portfolio not found"), 404
+        except UniqueViolation as exc:
+            if exc.diag.constraint_name != "loans_reference_unique":
+                raise
+            return jsonify(
+                error="Loan reference already exists in portfolio"
+            ), 409
+
+        return jsonify(
+            id=loan_id,
+            portfolio_id=portfolio_id,
+            reference=reference,
+            principal_cents=principal,
+            annual_rate_bps=rate,
+            term_months=term,
+            first_payment_date=first_payment_date.isoformat(),
+        ), 201
+
     return app
+
