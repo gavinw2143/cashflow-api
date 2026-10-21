@@ -14,9 +14,7 @@ VALID_LOAN = {
 @pytest.fixture
 def client(db, monkeypatch):
     # Route repository calls through the test transaction
-    monkeypatch.setattr(
-        "cashflow_api.app.get_db", lambda: db
-    )
+    monkeypatch.setattr("cashflow_api.app.get_db", lambda: db)
 
     app = create_app({"TESTING": True})
     return app.test_client()
@@ -65,9 +63,7 @@ def test_duplicate_portfolio_code(client, db):
         "name": "First Portfolio",
     }
 
-    assert client.post(
-        "/portfolios", json=payload
-    ).status_code == 201
+    assert client.post("/portfolios", json=payload).status_code == 201
 
     response = client.post(
         "/portfolios",
@@ -176,9 +172,7 @@ def test_get_loan_schedule(client):
         },
     ).get_json()
 
-    response = client.get(
-        f"/loans/{loan['id']}/schedule"
-    )
+    response = client.get(f"/loans/{loan['id']}/schedule")
 
     assert response.status_code == 200
 
@@ -188,15 +182,11 @@ def test_get_loan_schedule(client):
     assert cashflows[0]["principal_cents"] == 9762
     assert cashflows[0]["interest_cents"] == 525
     assert cashflows[-1]["remaining_balance_cents"] == 0
-    assert sum(
-        row["principal_cents"] for row in cashflows
-    ) == 120_000
+    assert sum(row["principal_cents"] for row in cashflows) == 120_000
 
 
 def test_get_missing_loan_schedule(client):
-    response = client.get(
-        "/loans/999999999/schedule"
-    )
+    response = client.get("/loans/999999999/schedule")
     assert response.status_code == 404
 
 
@@ -232,9 +222,7 @@ def test_portfolio_cashflow_aggregation(client):
         )
         assert response.status_code == 201
 
-    response = client.get(
-        f"/portfolios/{portfolio_id}/cashflows"
-    )
+    response = client.get(f"/portfolios/{portfolio_id}/cashflows")
     assert response.status_code == 200
 
     cashflows = response.get_json()["cashflows"]
@@ -249,13 +237,9 @@ def test_portfolio_cashflow_aggregation(client):
         "total_cents": 30_287,
     }
 
-    assert sum(
-        row["principal_cents"] for row in cashflows
-    ) == 180_000
+    assert sum(row["principal_cents"] for row in cashflows) == 180_000
 
-    assert sum(
-        row["interest_cents"] for row in cashflows
-    ) == 3_439
+    assert sum(row["interest_cents"] for row in cashflows) == 3_439
 
 
 def test_empty_portfolio_cashflows(client):
@@ -264,18 +248,14 @@ def test_empty_portfolio_cashflows(client):
         json={"code": "empty", "name": "Empty Portfolio"},
     ).get_json()
 
-    response = client.get(
-        f"/portfolios/{portfolio['id']}/cashflows"
-    )
+    response = client.get(f"/portfolios/{portfolio['id']}/cashflows")
 
     assert response.status_code == 200
     assert response.get_json()["cashflows"] == []
 
 
 def test_missing_portfolio_cashflows(client):
-    response = client.get(
-        "/portfolios/999999999/cashflows"
-    )
+    response = client.get("/portfolios/999999999/cashflows")
     assert response.status_code == 404
 
 
@@ -344,45 +324,19 @@ def test_loan_reference_unique_per_portfolio(client, portfolio_id):
 @pytest.mark.parametrize(
     "changes",
     [
-        pytest.param(
-            {"reference": ""}, id="blank-reference"
-        ),
-        pytest.param(
-            {"reference": 123}, id="numeric-reference"
-        ),
-        pytest.param(
-            {"principal_cents": 0}, id="zero-principal"
-        ),
-        pytest.param(
-            {"principal_cents": -1}, id="negative-principal"
-        ),
-        pytest.param(
-            {"principal_cents": True}, id="boolean-principal"
-        ),
-        pytest.param(
-            {"principal_cents": 1.5}, id="fractional-cents"
-        ),
-        pytest.param(
-            {"principal_cents": 2**63}, id="principal-overflow"
-        ),
-        pytest.param(
-            {"annual_rate_bps": -1}, id="negative-rate"
-        ),
-        pytest.param(
-            {"annual_rate_bps": True}, id="boolean-rate"
-        ),
-        pytest.param(
-            {"annual_rate_bps": 100_001}, id="rate-too-large"
-        ),
-        pytest.param(
-            {"term_months": 0}, id="zero-term"
-        ),
-        pytest.param(
-            {"term_months": True}, id="boolean-term"
-        ),
-        pytest.param(
-            {"term_months": 601}, id="term-too-large"
-        ),
+        pytest.param({"reference": ""}, id="blank-reference"),
+        pytest.param({"reference": 123}, id="numeric-reference"),
+        pytest.param({"principal_cents": 0}, id="zero-principal"),
+        pytest.param({"principal_cents": -1}, id="negative-principal"),
+        pytest.param({"principal_cents": True}, id="boolean-principal"),
+        pytest.param({"principal_cents": 1.5}, id="fractional-cents"),
+        pytest.param({"principal_cents": 2**63}, id="principal-overflow"),
+        pytest.param({"annual_rate_bps": -1}, id="negative-rate"),
+        pytest.param({"annual_rate_bps": True}, id="boolean-rate"),
+        pytest.param({"annual_rate_bps": 100_001}, id="rate-too-large"),
+        pytest.param({"term_months": 0}, id="zero-term"),
+        pytest.param({"term_months": True}, id="boolean-term"),
+        pytest.param({"term_months": 601}, id="term-too-large"),
         pytest.param(
             {"first_payment_date": "2026-02-30"},
             id="invalid-calendar-date",
@@ -437,4 +391,3 @@ def test_invalid_loan_request_formats(client, portfolio_id):
         content_type="text/plain",
     )
     assert wrong_media_type.status_code == 415
-

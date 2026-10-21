@@ -25,16 +25,13 @@ def test_fixed_rate_amortization():
 
     for previous, current in itertools.pairwise(rows):
         assert (
-            previous.remaining_balance_cents
-            - current.principal_cents
+            previous.remaining_balance_cents - current.principal_cents
             == current.remaining_balance_cents
         )
 
 
 def test_zero_interest_and_rounding():
-    rows = generate_schedule(
-        100, 0, 3, date(2027, 1, 31)
-    )
+    rows = generate_schedule(100, 0, 3, date(2027, 1, 31))
 
     assert [r.principal_cents for r in rows] == [33, 33, 34]
     assert all(r.interest_cents == 0 for r in rows)
@@ -42,9 +39,7 @@ def test_zero_interest_and_rounding():
 
 
 def test_month_end_dates():
-    rows = generate_schedule(
-        120_000, 525, 3, date(2027, 1, 31)
-    )
+    rows = generate_schedule(120_000, 525, 3, date(2027, 1, 31))
 
     assert [r.due_date for r in rows] == [
         date(2027, 1, 31),
@@ -63,7 +58,4 @@ def test_month_end_dates():
 )
 def test_invalid_terms(principal, rate, term):
     with pytest.raises(ValueError):
-        generate_schedule(
-            principal, rate, term, date(2026, 11, 1)
-        )
-
+        generate_schedule(principal, rate, term, date(2026, 11, 1))

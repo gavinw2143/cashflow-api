@@ -40,9 +40,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.post("/portfolios")
     def post_portfolio():
         if not request.is_json:
-            return jsonify(
-                error="Content-Type must be application/json"
-            ), 415
+            return jsonify(error="Content-Type must be application/json"), 415
 
         payload = request.get_json(silent=True)
 
@@ -53,25 +51,17 @@ def create_app(test_config: dict | None = None) -> Flask:
         name = payload.get("name")
 
         if not isinstance(code, str) or not isinstance(name, str):
-            return jsonify(
-                error="code and name must be strings"
-            ), 400
+            return jsonify(error="code and name must be strings"), 400
 
         code, name = code.strip(), name.strip()
 
         if not code or not name:
-            return jsonify(
-                error="code and name cannot be empty"
-            ), 400
+            return jsonify(error="code and name cannot be empty"), 400
 
         try:
-            portfolio_id = create_portfolio(
-                get_db(), code=code, name=name
-            )
+            portfolio_id = create_portfolio(get_db(), code=code, name=name)
         except UniqueViolation:
-            return jsonify(
-                error="Portfolio code already exists"
-            ), 409
+            return jsonify(error="Portfolio code already exists"), 409
 
         return jsonify(
             id=portfolio_id,
@@ -82,9 +72,7 @@ def create_app(test_config: dict | None = None) -> Flask:
     @app.post("/portfolios/<int:portfolio_id>/loans")
     def post_loan(portfolio_id: int):
         if not request.is_json:
-            return jsonify(
-                error="Content-Type must be application/json"
-            ), 415
+            return jsonify(error="Content-Type must be application/json"), 415
 
         payload = request.get_json(silent=True)
         if not isinstance(payload, dict):
@@ -113,10 +101,8 @@ def create_app(test_config: dict | None = None) -> Flask:
             first_payment_date = date.fromisoformat(raw_date)
             if first_payment_date.isoformat() != raw_date:
                 raise ValueError
-        except (ValueError, TypeError):
-            return jsonify(
-                error="first_payment_date must be YYYY-MM-DD"
-            ), 400
+        except ValueError, TypeError:
+            return jsonify(error="first_payment_date must be YYYY-MM-DD"), 400
 
         try:
             loan_id = create_loan(
@@ -135,9 +121,7 @@ def create_app(test_config: dict | None = None) -> Flask:
         except UniqueViolation as exc:
             if exc.diag.constraint_name != "loans_reference_unique":
                 raise
-            return jsonify(
-                error="Loan reference already exists in portfolio"
-            ), 409
+            return jsonify(error="Loan reference already exists in portfolio"), 409
 
         return jsonify(
             id=loan_id,
@@ -164,9 +148,7 @@ def create_app(test_config: dict | None = None) -> Flask:
                     "due_date": item.due_date.isoformat(),
                     "principal_cents": item.principal_cents,
                     "interest_cents": item.interest_cents,
-                    "remaining_balance_cents": (
-                        item.remaining_balance_cents
-                    ),
+                    "remaining_balance_cents": (item.remaining_balance_cents),
                 }
                 for item in schedule
             ],
@@ -174,9 +156,7 @@ def create_app(test_config: dict | None = None) -> Flask:
 
     @app.get("/portfolios/<int:portfolio_id>/cashflows")
     def get_cashflows(portfolio_id: int):
-        cashflows = get_portfolio_cashflows(
-            get_db(), portfolio_id
-        )
+        cashflows = get_portfolio_cashflows(get_db(), portfolio_id)
 
         if cashflows is None:
             return jsonify(error="Portfolio not found"), 404
@@ -195,4 +175,3 @@ def create_app(test_config: dict | None = None) -> Flask:
         ), 200
 
     return app
-

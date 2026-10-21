@@ -169,4 +169,3 @@ def get_loan_schedule(
     ).fetchall()
 
     return [ScheduledCashflow(*row) for row in rows]
-

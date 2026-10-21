@@ -42,6 +42,7 @@ def test_create_loan_persists_schedule(db):
     assert sum(row[0] for row in rows) == 120_000
     assert rows[-1][1] == 0
 
+
 def test_schedule_failure_rolls_back_loan(db, monkeypatch):
     portfolio_id = db.execute(
         """
@@ -63,9 +64,7 @@ def test_schedule_failure_rolls_back_loan(db, monkeypatch):
         )
         return schedule
 
-    monkeypatch.setattr(
-        repository, "generate_schedule", duplicate_payment
-    )
+    monkeypatch.setattr(repository, "generate_schedule", duplicate_payment)
 
     with pytest.raises(UniqueViolation):
         repository.create_loan(
@@ -92,4 +91,3 @@ def test_schedule_failure_rolls_back_loan(db, monkeypatch):
         "SELECT COUNT(*) FROM portfolios WHERE id = %s",
         (portfolio_id,),
     ).fetchone() == (1,)
-

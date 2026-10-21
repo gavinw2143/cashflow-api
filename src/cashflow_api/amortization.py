@@ -14,20 +14,12 @@ class ScheduledCashflow:
 
 
 def _month_date(start: date, offset: int) -> date:
-    year, zero_month = divmod(
-        start.year * 12 + start.month - 1 + offset, 12
-    )
+    year, zero_month = divmod(start.year * 12 + start.month - 1 + offset, 12)
     month = zero_month + 1
     last_day = monthrange(year, month)[1]
 
-    is_month_end = (
-        start.day == monthrange(start.year, start.month)[1]
-    )
-    day = (
-        last_day
-        if is_month_end
-        else min(start.day, last_day)
-    )
+    is_month_end = start.day == monthrange(start.year, start.month)[1]
+    day = last_day if is_month_end else min(start.day, last_day)
     return date(year, month, day)
 
 
@@ -54,15 +46,10 @@ def generate_schedule(
             payment = principal / term_months
         else:
             payment = (
-                principal * monthly_rate
-                / (1 - (1 + monthly_rate) ** (-term_months))
+                principal * monthly_rate / (1 - (1 + monthly_rate) ** (-term_months))
             )
 
-        payment_cents = int(
-            payment.quantize(
-                Decimal(1), rounding=ROUND_HALF_UP
-            )
-        )
+        payment_cents = int(payment.quantize(Decimal(1), rounding=ROUND_HALF_UP))
 
         balance = principal_cents
         schedule = []
@@ -87,9 +74,7 @@ def generate_schedule(
             schedule.append(
                 ScheduledCashflow(
                     payment_number=number,
-                    due_date=_month_date(
-                        first_payment_date, number - 1
-                    ),
+                    due_date=_month_date(first_payment_date, number - 1),
                     principal_cents=principal_paid,
                     interest_cents=interest,
                     remaining_balance_cents=balance,
@@ -97,4 +82,3 @@ def generate_schedule(
             )
 
     return schedule
-
