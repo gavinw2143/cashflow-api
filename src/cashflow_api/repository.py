@@ -1,8 +1,57 @@
+from dataclasses import dataclass
 from datetime import date
 
 from psycopg import Connection
 
 from cashflow_api.amortization import generate_schedule, ScheduledCashflow
+
+
+@dataclass(frozen=True, slots=True)
+class MonthlyCashflow:
+    month: date
+    principal_cents: int
+    interest_cents: int
+    total_cents: int
+
+
+def get_portfolio_cashflows(
+    conn: Connection,
+    portfolio_id: int,
+) -> list[MonthlyCashflow] | None:
+    exists = conn.execute(
+        "SELECT 1 FROM portfolios WHERE id = %s",
+        (portfolio_id,),
+    ).fetchone()
+
+    if exists is None:
+        return None
+
+    rows = conn.execute(
+        """
+        SELECT
+            date_trunc('month', c.due_date)::date AS month,
+            SUM(c.principal_cents) AS principal_cents,
+            SUM(c.interest_cents) AS interest_cents,
+            SUM(c.principal_cents + c.interest_cents)
+                AS total_cents
+        FROM scheduled_cashflows AS c
+        JOIN loans AS l ON l.id = c.loan_id
+        WHERE l.portfolio_id = %s
+        GROUP BY 1
+        ORDER BY 1
+        """,
+        (portfolio_id,),
+    ).fetchall()
+
+    return [
+        MonthlyCashflow(
+            month=row[0],
+            principal_cents=int(row[1]),
+            interest_cents=int(row[2]),
+            total_cents=int(row[3]),
+        )
+        for row in rows
+    ]
 
 
 def create_loan(

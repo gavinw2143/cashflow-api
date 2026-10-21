@@ -178,3 +178,82 @@ def test_get_missing_loan_schedule(client):
     )
     assert response.status_code == 404
 
+
+def test_portfolio_cashflow_aggregation(client):
+    portfolio_response = client.post(
+        "/portfolios",
+        json={"code": "aggregate", "name": "Aggregation Test"},
+    )
+    assert portfolio_response.status_code == 201
+    portfolio_id = portfolio_response.get_json()["id"]
+
+    loans = [
+        {
+            "reference": "loan-a",
+            "principal_cents": 120_000,
+            "annual_rate_bps": 525,
+            "term_months": 12,
+            "first_payment_date": "2026-11-01",
+        },
+        {
+            "reference": "loan-b",
+            "principal_cents": 60_000,
+            "annual_rate_bps": 0,
+            "term_months": 3,
+            "first_payment_date": "2026-11-15",
+        },
+    ]
+
+    for loan in loans:
+        response = client.post(
+            f"/portfolios/{portfolio_id}/loans",
+            json=loan,
+        )
+        assert response.status_code == 201
+
+    response = client.get(
+        f"/portfolios/{portfolio_id}/cashflows"
+    )
+    assert response.status_code == 200
+
+    cashflows = response.get_json()["cashflows"]
+
+    assert len(cashflows) == 12
+
+    november = cashflows[0]
+    assert november == {
+        "month": "2026-11-01",
+        "principal_cents": 29_762,
+        "interest_cents": 525,
+        "total_cents": 30_287,
+    }
+
+    assert sum(
+        row["principal_cents"] for row in cashflows
+    ) == 180_000
+
+    assert sum(
+        row["interest_cents"] for row in cashflows
+    ) == 3_439
+
+
+def test_empty_portfolio_cashflows(client):
+    portfolio = client.post(
+        "/portfolios",
+        json={"code": "empty", "name": "Empty Portfolio"},
+    ).get_json()
+
+    response = client.get(
+        f"/portfolios/{portfolio['id']}/cashflows"
+    )
+
+    assert response.status_code == 200
+    assert response.get_json()["cashflows"] == []
+
+
+def test_missing_portfolio_cashflows(client):
+    response = client.get(
+        "/portfolios/999999999/cashflows"
+    )
+    assert response.status_code == 404
+
