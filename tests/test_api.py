@@ -137,3 +137,44 @@ def test_create_loan_missing_portfolio(client):
 
     assert response.status_code == 404
 
+
+def test_get_loan_schedule(client):
+    portfolio = client.post(
+        "/portfolios",
+        json={"code": "schedule-test", "name": "Schedule Test"},
+    ).get_json()
+
+    loan = client.post(
+        f"/portfolios/{portfolio['id']}/loans",
+        json={
+            "reference": "loan-001",
+            "principal_cents": 120_000,
+            "annual_rate_bps": 525,
+            "term_months": 12,
+            "first_payment_date": "2026-11-01",
+        },
+    ).get_json()
+
+    response = client.get(
+        f"/loans/{loan['id']}/schedule"
+    )
+
+    assert response.status_code == 200
+
+    cashflows = response.get_json()["cashflows"]
+
+    assert len(cashflows) == 12
+    assert cashflows[0]["principal_cents"] == 9762
+    assert cashflows[0]["interest_cents"] == 525
+    assert cashflows[-1]["remaining_balance_cents"] == 0
+    assert sum(
+        row["principal_cents"] for row in cashflows
+    ) == 120_000
+
+
+def test_get_missing_loan_schedule(client):
+    response = client.get(
+        "/loans/999999999/schedule"
+    )
+    assert response.status_code == 404
+

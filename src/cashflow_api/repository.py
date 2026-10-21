@@ -2,7 +2,7 @@ from datetime import date
 
 from psycopg import Connection
 
-from cashflow_api.amortization import generate_schedule
+from cashflow_api.amortization import generate_schedule, ScheduledCashflow
 
 
 def create_loan(
@@ -90,4 +90,34 @@ def create_portfolio(
 
         assert row is not None
         return row[0]
+
+
+def get_loan_schedule(
+    conn: Connection,
+    loan_id: int,
+) -> list[ScheduledCashflow] | None:
+    exists = conn.execute(
+        "SELECT 1 FROM loans WHERE id = %s",
+        (loan_id,),
+    ).fetchone()
+
+    if exists is None:
+        return None
+
+    rows = conn.execute(
+        """
+        SELECT
+            payment_number,
+            due_date,
+            principal_cents,
+            interest_cents,
+            remaining_balance_cents
+        FROM scheduled_cashflows
+        WHERE loan_id = %s
+        ORDER BY payment_number
+        """,
+        (loan_id,),
+    ).fetchall()
+
+    return [ScheduledCashflow(*row) for row in rows]
 

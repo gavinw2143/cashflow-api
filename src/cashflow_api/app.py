@@ -5,7 +5,7 @@ from flask import Flask, current_app, g, jsonify, request
 import psycopg
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
-from cashflow_api.repository import create_loan, create_portfolio
+from cashflow_api.repository import create_loan, create_portfolio, get_loan_schedule
 
 
 def get_db() -> psycopg.Connection:
@@ -143,6 +143,29 @@ def create_app(test_config: dict | None = None) -> Flask:
             term_months=term,
             first_payment_date=first_payment_date.isoformat(),
         ), 201
+
+    @app.get("/loans/<int:loan_id>/schedule")
+    def get_schedule(loan_id: int):
+        schedule = get_loan_schedule(get_db(), loan_id)
+
+        if schedule is None:
+            return jsonify(error="Loan not found"), 404
+
+        return jsonify(
+            loan_id=loan_id,
+            cashflows=[
+                {
+                    "payment_number": item.payment_number,
+                    "due_date": item.due_date.isoformat(),
+                    "principal_cents": item.principal_cents,
+                    "interest_cents": item.interest_cents,
+                    "remaining_balance_cents": (
+                        item.remaining_balance_cents
+                    ),
+                }
+                for item in schedule
+            ],
+        ), 200
 
     return app
 
