@@ -38,7 +38,7 @@ validate: up
 	docker compose run --rm flyway validate
 
 test:
-	uv run pytest
+	uv run --env-file .env pytest
 
 lint:
 	uv run ruff check .

@@ -29,3 +29,9 @@ services:
 
 volumes:
   postgres_data:
+
+networks:
+  default:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.name: br-cashflow
