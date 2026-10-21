@@ -1,7 +1,7 @@
 from calendar import monthrange
 from dataclasses import dataclass
 from datetime import date
-from decimal import Decimal, ROUND_HALF_UP, localcontext
+from decimal import ROUND_HALF_UP, Decimal, localcontext
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,7 +60,7 @@ def generate_schedule(
 
         payment_cents = int(
             payment.quantize(
-                Decimal("1"), rounding=ROUND_HALF_UP
+                Decimal(1), rounding=ROUND_HALF_UP
             )
         )
 
@@ -70,7 +70,7 @@ def generate_schedule(
         for number in range(1, term_months + 1):
             interest = int(
                 (Decimal(balance) * monthly_rate).quantize(
-                    Decimal("1"), rounding=ROUND_HALF_UP
+                    Decimal(1), rounding=ROUND_HALF_UP
                 )
             )
 

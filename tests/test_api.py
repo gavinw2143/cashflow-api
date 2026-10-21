@@ -2,6 +2,14 @@ import pytest
 
 from cashflow_api.app import create_app
 
+VALID_LOAN = {
+    "reference": "loan-001",
+    "principal_cents": 120_000,
+    "annual_rate_bps": 525,
+    "term_months": 12,
+    "first_payment_date": "2026-11-01",
+}
+
 
 @pytest.fixture
 def client(db, monkeypatch):
@@ -12,6 +20,19 @@ def client(db, monkeypatch):
 
     app = create_app({"TESTING": True})
     return app.test_client()
+
+
+@pytest.fixture
+def portfolio_id(client):
+    response = client.post(
+        "/portfolios",
+        json={
+            "code": "negative-tests",
+            "name": "Negative Path Tests",
+        },
+    )
+    assert response.status_code == 201
+    return response.get_json()["id"]
 
 
 def test_create_portfolio(client, db):
@@ -256,4 +277,164 @@ def test_missing_portfolio_cashflows(client):
         "/portfolios/999999999/cashflows"
     )
     assert response.status_code == 404
+
+
+def test_duplicate_loan_reference(client, db, portfolio_id):
+    url = f"/portfolios/{portfolio_id}/loans"
+
+    first = client.post(url, json=VALID_LOAN)
+    assert first.status_code == 201
+    loan_id = first.get_json()["id"]
+
+    duplicate = client.post(url, json=VALID_LOAN)
+    assert duplicate.status_code == 409
+    assert duplicate.get_json()["error"] == (
+        "Loan reference already exists in portfolio"
+    )
+
+    # The rejected request must not create another loan.
+    count = db.execute(
+        """
+        SELECT COUNT(*)
+        FROM loans
+        WHERE portfolio_id = %s AND reference = %s
+        """,
+        (portfolio_id, "loan-001"),
+    ).fetchone()[0]
+    assert count == 1
+
+    # The existing loan's schedule must remain intact.
+    count = db.execute(
+        """
+        SELECT COUNT(*)
+        FROM scheduled_cashflows
+        WHERE loan_id = %s
+        """,
+        (loan_id,),
+    ).fetchone()[0]
+    assert count == 12
+
+    # The database transaction must remain usable.
+    recovered = client.post(
+        url,
+        json={**VALID_LOAN, "reference": "loan-002"},
+    )
+    assert recovered.status_code == 201
+
+
+def test_loan_reference_unique_per_portfolio(client, portfolio_id):
+    second_portfolio = client.post(
+        "/portfolios",
+        json={
+            "code": "second-portfolio",
+            "name": "Second Portfolio",
+        },
+    )
+    assert second_portfolio.status_code == 201
+    second_id = second_portfolio.get_json()["id"]
+
+    for pid in (portfolio_id, second_id):
+        response = client.post(
+            f"/portfolios/{pid}/loans",
+            json=VALID_LOAN,
+        )
+        assert response.status_code == 201
+
+
+@pytest.mark.parametrize(
+    "changes",
+    [
+        pytest.param(
+            {"reference": ""}, id="blank-reference"
+        ),
+        pytest.param(
+            {"reference": 123}, id="numeric-reference"
+        ),
+        pytest.param(
+            {"principal_cents": 0}, id="zero-principal"
+        ),
+        pytest.param(
+            {"principal_cents": -1}, id="negative-principal"
+        ),
+        pytest.param(
+            {"principal_cents": True}, id="boolean-principal"
+        ),
+        pytest.param(
+            {"principal_cents": 1.5}, id="fractional-cents"
+        ),
+        pytest.param(
+            {"principal_cents": 2**63}, id="principal-overflow"
+        ),
+        pytest.param(
+            {"annual_rate_bps": -1}, id="negative-rate"
+        ),
+        pytest.param(
+            {"annual_rate_bps": True}, id="boolean-rate"
+        ),
+        pytest.param(
+            {"annual_rate_bps": 100_001}, id="rate-too-large"
+        ),
+        pytest.param(
+            {"term_months": 0}, id="zero-term"
+        ),
+        pytest.param(
+            {"term_months": True}, id="boolean-term"
+        ),
+        pytest.param(
+            {"term_months": 601}, id="term-too-large"
+        ),
+        pytest.param(
+            {"first_payment_date": "2026-02-30"},
+            id="invalid-calendar-date",
+        ),
+        pytest.param(
+            {"first_payment_date": "2026-11-1"},
+            id="noncanonical-date",
+        ),
+        pytest.param(
+            {"first_payment_date": None},
+            id="missing-date",
+        ),
+    ],
+)
+def test_invalid_loan_inputs(client, db, portfolio_id, changes):
+    response = client.post(
+        f"/portfolios/{portfolio_id}/loans",
+        json={**VALID_LOAN, **changes},
+    )
+
+    assert response.status_code == 400
+    assert "error" in response.get_json()
+
+    count = db.execute(
+        """
+        SELECT COUNT(*)
+        FROM loans
+        WHERE portfolio_id = %s
+        """,
+        (portfolio_id,),
+    ).fetchone()[0]
+
+    assert count == 0
+
+
+def test_invalid_loan_request_formats(client, portfolio_id):
+    url = f"/portfolios/{portfolio_id}/loans"
+
+    malformed = client.post(
+        url,
+        data='{"reference":',
+        content_type="application/json",
+    )
+    assert malformed.status_code == 400
+
+    wrong_shape = client.post(url, json=[1, 2, 3])
+    assert wrong_shape.status_code == 400
+
+    wrong_media_type = client.post(
+        url,
+        data="not JSON",
+        content_type="text/plain",
+    )
+    assert wrong_media_type.status_code == 415
 

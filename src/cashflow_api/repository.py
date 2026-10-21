@@ -3,7 +3,7 @@ from datetime import date
 
 from psycopg import Connection
 
-from cashflow_api.amortization import generate_schedule, ScheduledCashflow
+from cashflow_api.amortization import ScheduledCashflow, generate_schedule
 
 
 @dataclass(frozen=True, slots=True)

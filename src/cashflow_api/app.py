@@ -1,11 +1,16 @@
-from datetime import date
 import os
+from datetime import date
 
-from flask import Flask, current_app, g, jsonify, request
 import psycopg
+from flask import Flask, current_app, g, jsonify, request
 from psycopg.errors import ForeignKeyViolation, UniqueViolation
 
-from cashflow_api.repository import create_loan, create_portfolio, get_loan_schedule, get_portfolio_cashflows
+from cashflow_api.repository import (
+    create_loan,
+    create_portfolio,
+    get_loan_schedule,
+    get_portfolio_cashflows,
+)
 
 
 def get_db() -> psycopg.Connection:

@@ -1,3 +1,4 @@
+import itertools
 from datetime import date
 
 import pytest
@@ -22,7 +23,7 @@ def test_fixed_rate_amortization():
     assert rows[-1].remaining_balance_cents == 0
     assert [r.payment_number for r in rows] == list(range(1, 13))
 
-    for previous, current in zip(rows, rows[1:]):
+    for previous, current in itertools.pairwise(rows):
         assert (
             previous.remaining_balance_cents
             - current.principal_cents

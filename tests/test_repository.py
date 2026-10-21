@@ -1,12 +1,10 @@
-import os
-from datetime import date
 from dataclasses import replace
+from datetime import date
 
-import psycopg
-from psycopg.errors import UniqueViolation
 import pytest
+from psycopg.errors import UniqueViolation
 
-import cashflow_api.repository as repository
+from cashflow_api import repository
 from cashflow_api.repository import create_loan
 
 
